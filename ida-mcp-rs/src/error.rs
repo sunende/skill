@@ -1,0 +1,140 @@
+//! Error types for the IDA MCP server.
+//!
+//! Tool execution errors are returned with `is_error: true` in CallToolResult,
+//! while protocol errors (invalid tool name, malformed args) are handled by rmcp.
+
+use rmcp::model::{CallToolResult, ContentBlock as Content};
+use thiserror::Error;
+
+pub(crate) const DEBUGGER_START_RETAINED_PREFIX: &str =
+    "Debugger start incomplete; active session retained: ";
+
+/// Tool execution errors - returned with is_error: true in CallToolResult
+#[derive(Error, Debug)]
+pub enum ToolError {
+    #[error(
+        "No database is currently open. If you had one open previously, the server may have restarted — call open_idb again."
+    )]
+    NoDatabaseOpen,
+
+    #[error("A database is already open: {0}. Use close_idb first.")]
+    DatabaseAlreadyOpen(String),
+
+    #[error("Failed to open database: {0}")]
+    OpenFailed(String),
+
+    #[error("Database appears to be open in another instance: {0}")]
+    DatabaseLocked(String),
+
+    #[error("Invalid address format: {0}")]
+    InvalidAddress(String),
+
+    #[error("Invalid database path: {0}")]
+    InvalidPath(String),
+
+    #[error("Invalid parameters: {0}")]
+    InvalidParams(String),
+
+    #[error("Invalid tool category: {0}")]
+    InvalidToolCategory(String),
+
+    #[error("Invalid tool name: {0}")]
+    InvalidToolName(String),
+
+    #[error("Address {0:#x} is outside valid range")]
+    AddressOutOfRange(u64),
+
+    #[error("Function not found at address {0:#x}")]
+    FunctionNotFound(u64),
+
+    #[error("Function not found: {0}")]
+    FunctionNameNotFound(String),
+
+    #[error("Decompiler not available")]
+    DecompilerUnavailable,
+
+    #[error("Operation timed out after {0} seconds")]
+    Timeout(u64),
+
+    #[error("{0}")]
+    TimeoutDetailed(String),
+
+    #[error("{0}")]
+    Cancelled(String),
+
+    #[error("Server is busy (request queue full). Please retry.")]
+    Busy,
+
+    #[error(
+        "The database this background operation opened was closed and replaced. \
+         Its remaining work was abandoned so it cannot touch the current database."
+    )]
+    DatabaseReplaced,
+
+    #[error(
+        "Matching background work is already running; its task handle stays with the response that started it. Retry after it finishes."
+    )]
+    BackgroundTaskHandlePrivate,
+
+    #[error(
+        "Background task registry is full ({max} retained tasks). Retry after older results expire."
+    )]
+    BackgroundTaskRegistryFull { max: usize },
+
+    #[error(
+        "Worker pool exhausted: {active}/{max} workers are leased. Close an IDB or retry later."
+    )]
+    PoolExhausted { active: usize, max: usize },
+
+    #[error("Worker {worker_id} crashed or disconnected during {last_op}")]
+    WorkerCrashed { worker_id: usize, last_op: String },
+
+    #[error("Remote worker protocol error: {0}")]
+    RemoteProtocol(String),
+
+    #[error("IDA error: {0}")]
+    IdaError(String),
+
+    #[error("Debugger teardown incomplete: {0}")]
+    DebuggerTeardown(String),
+
+    #[error("{DEBUGGER_START_RETAINED_PREFIX}{0}")]
+    DebuggerStartRetained(String),
+
+    #[error("Debugger session lost: {0}")]
+    DebuggerSessionLost(String),
+
+    #[error("Not supported: {0}")]
+    NotSupported(String),
+
+    #[error("Worker channel closed")]
+    WorkerClosed,
+
+    #[error("SDK version mismatch: {0}")]
+    SdkVersionMismatch(String),
+}
+
+impl ToolError {
+    /// Convert to MCP CallToolResult with is_error: true
+    pub fn to_tool_result(&self) -> CallToolResult {
+        CallToolResult::error(vec![Content::text(self.to_string())])
+    }
+}
+
+impl From<idalib::IDAError> for ToolError {
+    fn from(e: idalib::IDAError) -> Self {
+        ToolError::IdaError(e.to_string())
+    }
+}
+
+impl<T> From<std::sync::mpsc::SendError<T>> for ToolError {
+    fn from(_: std::sync::mpsc::SendError<T>) -> Self {
+        ToolError::WorkerClosed
+    }
+}
+
+impl From<tokio::sync::oneshot::error::RecvError> for ToolError {
+    fn from(_: tokio::sync::oneshot::error::RecvError) -> Self {
+        ToolError::WorkerClosed
+    }
+}

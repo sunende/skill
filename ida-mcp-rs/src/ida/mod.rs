@@ -1,0 +1,22 @@
+//! IDA Pro integration module.
+//!
+//! This module provides a headless IDA Pro interface via the idalib crate.
+//! It uses a channel-based worker pattern to ensure IDA operations run on the main thread
+//! (IDA types are not thread-safe).
+
+pub mod handlers;
+pub mod lock;
+mod loop_impl;
+pub mod observability;
+pub mod pool;
+#[cfg(target_os = "windows")]
+mod registry_isolation;
+mod remote;
+pub mod request;
+pub mod types;
+pub mod worker;
+
+pub use loop_impl::{init_ida_library, run_ida_loop, IdaInitState};
+pub use request::IdaRequest;
+pub use types::*;
+pub use worker::IdaWorker;

@@ -1,0 +1,48 @@
+[package]
+name = "ida-mcp"
+version = "9.4.3"
+edition = "2024"
+rust-version = "1.89"
+description = "Headless IDA Pro MCP Server"
+license = "MIT"
+repository = "https://github.com/blacktop/ida-mcp-rs"
+authors = ["blacktop"]
+keywords = ["ida", "mcp", "reverse-engineering", "disassembly", "decompiler"]
+categories = ["development-tools", "command-line-utilities"]
+
+[dependencies]
+axum = { version = "0.8", default-features = false, features = ["http1", "tokio"] }
+idalib = { git = "https://github.com/blacktop/idalib.git", branch = "sdk-9.4.0" }
+rmcp = { version = "3.2", features = ["server", "client", "transport-io", "transport-child-process", "transport-streamable-http-server", "elicitation", "request-state", "schemars"] }
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "sync", "macros", "net", "signal", "process", "io-util"] }
+tokio-util = "0.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+schemars = "1.2"
+sha2 = "0.11"
+anyhow = "1"
+thiserror = "2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+clap = { version = "4", features = ["derive", "env"] }
+libc = "0.2"
+bytes = "1"
+futures-util = "0.3"
+http = "1"
+http-body = "1"
+http-body-util = "0.1"
+tower-service = "0.3"
+uuid = { version = "1", features = ["v4"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Registry",
+    "Win32_System_Threading",
+] }
+
+[build-dependencies]
+cc = "1"
+idalib-build = { git = "https://github.com/blacktop/idalib.git", branch = "sdk-9.4.0", package = "idalib-build" }
